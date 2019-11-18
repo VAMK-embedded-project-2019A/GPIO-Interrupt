@@ -15,16 +15,22 @@ class GPIO{
 
 	
 public:
-	GPIO(int pin);
-	int setDir(pinDirection dir);
-	int setValue(pinValue val);
-	int getValue();
-	int setEdge(char *edge);
-	int fdOpen();
-	int fdClose(int fd);
-	int pinExport();
+	bool is_pressed = false;
+	int fd;
 
+public:
+	GPIO(int pin);
+	GPIO(int pin,pinDirection dir);
+	
+	void pinExport();
+	void setDir(pinDirection dir);
+	void setValue(pinValue val);
+	void setEdge(char *edge);
+	int fdOpen();
+	int fdClose();
 
 private:
 	int _gpioPin;
+	pinDirection _dir;
+	
 };

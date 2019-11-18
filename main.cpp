@@ -3,12 +3,7 @@
 #include <cstring>
 #include <poll.h>
 #include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-
-
+#include <unistd.h> //for lseek
 #include "GPIO.h"
 
 int main()
@@ -25,22 +20,13 @@ int main()
 	int count2 = 0;
 	timeout = 3000;
 
-
-    GPIO button1(button1_pin);
-    GPIO button2(button2_pin);
-    GPIO led(led_pin);
-
-	button1.pinExport();
-    button1.setDir(INPUT);
-    button1.setEdge("rising");
-	button1_fd = button1.fdOpen();
 	
-	button2.pinExport();
-	button2.setDir(INPUT);
-    button2.setEdge("rising");
-	button2_fd = button2.fdOpen();
+	GPIO button1(button1_pin, INPUT);
+	GPIO button2(button2_pin, INPUT);
+	button1.setEdge("rising");
+	button2.setEdge("rising");
 	
-	led.setDir(OUTPUT);
+	GPIO led(led_pin, OUTPUT);
 	led.setValue(HIGH);
 
 	
@@ -49,10 +35,10 @@ int main()
 	while (1) {
 		memset((void*)fdset, 0, sizeof(fdset)); //clear the fdset block of mermory
 
-		fdset[0].fd = button1_fd;
+		fdset[0].fd = button1.fd;
 		fdset[0].events = POLLPRI;
 		
-		fdset[1].fd = button2_fd;
+		fdset[1].fd = button2.fd;
 		fdset[1].events = POLLPRI;
 
 		rc = poll(fdset, nfds, timeout);
@@ -79,6 +65,7 @@ int main()
 					// ISR here
 				std::cout << std::endl << "poll() GPIO " << button1_pin << " interrupt occurred" << std::endl;
 				std::cout << "read value: " << (char)buf[0] << std::endl;
+				button1.is_pressed = true;
 				led.setValue(LOW);
 				}
 			}
@@ -96,6 +83,7 @@ int main()
 					// ISR here
 				std::cout << std::endl << "poll() GPIO " << button2_pin << " interrupt occurred" << std::endl;
 				std::cout << "read value: " << (char)buf[0] << std::endl;
+				button2.is_pressed = true;
 				led.setValue(LOW);
 				}
 			}
@@ -103,7 +91,8 @@ int main()
 
 		fflush(stdout);
 	}
-	button1.fdClose(button1_fd);
-	button1.fdClose(button2_fd); 
+	
+	button1.fdClose();
+	button2.fdClose();
 	return 0;
 }

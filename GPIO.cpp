@@ -1,7 +1,7 @@
 #include <iostream>
-#include <cstdio> //stdio.h
+#include <cstdio> 
+#include <cstring>
 #include <stdlib.h>
-#include <string.h>
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -9,14 +9,44 @@
 
 #include "GPIO.h"
 
+/****************************************************************
+ * Constructor
+ ****************************************************************/
 GPIO::GPIO(int pin){
 	_gpioPin = pin;
 }
 
+GPIO::GPIO(int pin,pinDirection dir){
+	_gpioPin = pin;
+	_dir = dir;
+	GPIO::setDir(_dir);
+	fd = GPIO::fdOpen();
+}
+
 /****************************************************************
- * gpio_set_dir
+ * pinExport
  ****************************************************************/
-int GPIO::setDir(pinDirection dir){
+void GPIO::pinExport()
+{
+	int fd, len;
+	char buf[MAX_BUF];
+ 
+	fd = open(SYSFS_GPIO_DIR "/export", O_WRONLY);
+	if (fd < 0) {
+		perror("gpio/export");
+		//return fd;
+	}
+ 
+	len = snprintf(buf, sizeof(buf), "%d", _gpioPin);
+	write(fd, buf, len);
+	close(fd);
+}
+
+/****************************************************************
+ * setDir
+ * to set direction of a GPIO pin
+ ****************************************************************/
+void GPIO::setDir(pinDirection dir){
 	int fd; // file descriptor
 	char buf[MAX_BUF];
 
@@ -25,19 +55,21 @@ int GPIO::setDir(pinDirection dir){
 	fd = open(buf, O_WRONLY);
 	if (fd < 0) {
 		perror("gpio/direction");
-		return fd;
+		//return fd;
 	}
 
 	if (dir == OUTPUT)
 		write(fd, "out", 4);
 	else
 		write(fd, "in", 3);
-	//printf("%d", fd);
 	close(fd);
-	return 0;
 }
 
-int GPIO::setValue(pinValue val){
+/****************************************************************
+ * setValue
+ * to set Value of a GPIO pin
+ ****************************************************************/
+void GPIO::setValue(pinValue val){
 	int fd;
 	char buf[MAX_BUF];
 
@@ -46,7 +78,7 @@ int GPIO::setValue(pinValue val){
 	fd = open(buf, O_WRONLY);
 	if (fd < 0) {
 		perror("gpio/set-value");
-		return fd;
+		//return fd;
 	}
 
 	if (val == LOW)
@@ -55,59 +87,12 @@ int GPIO::setValue(pinValue val){
 		write(fd, "1", 2);
 
 	close(fd);
-	return 0;
-}
-int GPIO::getValue(){
-	int fd;
-	char buf[MAX_BUF];
-	char ch;
-	int value;
-
-	snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR "/gpio%d/value", _gpioPin);
-
-	fd = open(buf, O_RDONLY);
-	if (fd < 0) {
-		perror("gpio/get-value");
-		return fd;
-	}
-
-	read(fd, &ch, 1);
-
-	if (ch != '0') {
-		value = 1;
-	} else {
-		value = 0;
-	}
-
-	close(fd);
-	return value;
 }
 
 /****************************************************************
- * gpio_export
+ * setEdge
  ****************************************************************/
-int GPIO::pinExport()
-{
-	int fd, len;
-	char buf[MAX_BUF];
- 
-	fd = open(SYSFS_GPIO_DIR "/export", O_WRONLY);
-	if (fd < 0) {
-		perror("gpio/export");
-		return fd;
-	}
- 
-	len = snprintf(buf, sizeof(buf), "%d", _gpioPin);
-	write(fd, buf, len);
-	close(fd);
- 
-	return 0;
-}
-
-/****************************************************************
- * gpio_set_edge
- ****************************************************************/
-int GPIO::setEdge(char *edge)
+void GPIO::setEdge(char *edge)
 {
 	int fd;
 	char buf[MAX_BUF];
@@ -117,12 +102,11 @@ int GPIO::setEdge(char *edge)
 	fd = open(buf, O_WRONLY);
 	if (fd < 0) {
 		perror("gpio/set-edge");
-		return fd;
+		//return fd;
 	}
 
 	write(fd, edge, strlen(edge) + 1);
 	close(fd);
-	return 0;
 }
 
 /****************************************************************
@@ -147,7 +131,7 @@ int GPIO::fdOpen()
  * gpio_fd_close
  ****************************************************************/
 
-int GPIO::fdClose(int fd)
+int GPIO::fdClose()
 {
 	return close(fd);
 }
