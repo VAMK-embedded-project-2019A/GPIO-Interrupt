@@ -12,14 +12,29 @@ enum pinValue{
 };
 
 class GPIO{
+	enum pinDirection{
+		INPUT = 0,
+		OUTPUT = 1
+	};
 
+	enum pinValue{
+		LOW = 0,
+		HIGH = 1
+	};
+
+	enum edge{
+		RISING = 0;
+		FALLING = 1;
+		BOTH = 2;
+	};
 	
 public:
 	bool is_pressed = false;
 	int fd;
 
-public:
-	GPIO(int pin);
+	GPIO() = default;
+	init(int pin, pinDirection dir, edge edge)
+
 	GPIO(int pin,pinDirection dir);
 	
 	void pinExport();
@@ -32,5 +47,6 @@ public:
 private:
 	int _gpioPin;
 	pinDirection _dir;
+	edge _edge;
 	
 };
