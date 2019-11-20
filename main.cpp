@@ -8,7 +8,7 @@
 
 int main()
 {
-	struct pollfd fdset[2];     // array of file descriptor
+	/* struct pollfd fdset[2];     // array of file descriptor
 	int nfds = 2;               //number of interrupt
 	int button1_fd,button2_fd, timeout, rc, len;
 	int buf[1];
@@ -93,6 +93,21 @@ int main()
 	}
 	
 	button1.fdClose();
-	button2.fdClose();
+	button2.fdClose(); */
+
+
+
+
+	int button1 = 25;
+
+	GPIO play;
+	play.init(button1, INPUT, RISING);
+	printf("%d\n", play.fd);
+	
+	ButtonPoll buttonpoll;
+	buttonpoll.add(&play);
+
+	//printf("%d\n", (buttonpoll.gpio_list(1))->fd);
+
 	return 0;
 }

@@ -1,52 +1,54 @@
 #define SYSFS_GPIO_DIR "/sys/class/gpio"
 #define MAX_BUF 64
+#include <vector>
+#include <poll.h>
 
 enum pinDirection{
-	INPUT = 0,
-	OUTPUT = 1
-};
+		INPUT = 0,
+		OUTPUT = 1
+	};
 
 enum pinValue{
 	LOW = 0,
 	HIGH = 1
 };
 
+enum edge{
+	RISING = 0,
+	FALLING = 1,
+	BOTH = 2
+	};
+
 class GPIO{
-	enum pinDirection{
-		INPUT = 0,
-		OUTPUT = 1
-	};
+	public:
+		bool is_pressed = false;
+		int fd;
 
-	enum pinValue{
-		LOW = 0,
-		HIGH = 1
-	};
+		//Constructor
+		GPIO();
 
-	enum edge{
-		RISING = 0;
-		FALLING = 1;
-		BOTH = 2;
-	};
-	
-public:
-	bool is_pressed = false;
-	int fd;
+		//Methods
+		int init(int pin, pinDirection direction, edge edge);
+		void pinExport();
+		void setDir(pinDirection direction);
+		void setValue(pinValue value);
+		void setEdge(edge edge);
+		int fdOpen();
+		int fdClose();
 
-	GPIO() = default;
-	init(int pin, pinDirection dir, edge edge)
+	private:
+		int _gpioPin;
+		pinDirection _dir;
+		edge _edge;
+};
 
-	GPIO(int pin,pinDirection dir);
-	
-	void pinExport();
-	void setDir(pinDirection dir);
-	void setValue(pinValue val);
-	void setEdge(char *edge);
-	int fdOpen();
-	int fdClose();
+class ButtonPoll{
+	public:
+		std::vector <GPIO*>gpio_list;
+		struct pollfd* fdset= NULL;
+		ButtonPoll();
 
-private:
-	int _gpioPin;
-	pinDirection _dir;
-	edge _edge;
-	
+		void add(GPIO* button);
+		void polling();
+	private:
 };
