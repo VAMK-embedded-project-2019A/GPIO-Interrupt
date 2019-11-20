@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-
 #include "GPIO.h"
 
 /****************************************************************
@@ -40,7 +39,6 @@ void GPIO::pinExport()
 	fd = open(SYSFS_GPIO_DIR "/export", O_WRONLY);
 	if (fd < 0) {
 		perror("gpio/export");
-		//return fd;
 	}
  
 	len = snprintf(buf, sizeof(buf), "%d", _gpioPin);
@@ -61,13 +59,16 @@ void GPIO::setDir(pinDirection direction){
 	fd = open(buf, O_WRONLY);
 	if (fd < 0) {
 		perror("gpio/direction");
-		//return fd;
 	}
 
-	if (direction == OUTPUT)
-		write(fd, "out", 4);
-	else
-		write(fd, "in", 3);
+	switch(direction) {
+		case OUTPUT :
+			write(fd, "out", 4);
+			break; 
+		case INPUT :
+			write(fd, "in", 3);
+			break;
+	}	
 	close(fd);
 }
 
@@ -75,7 +76,7 @@ void GPIO::setDir(pinDirection direction){
  * GPIO::setValue
  * to set Value of a GPIO pin
  ****************************************************************/
-void GPIO::setValue(pinValue val){
+void GPIO::setValue(pinValue value){
 	int fd;
 	char buf[MAX_BUF];
 
@@ -84,14 +85,16 @@ void GPIO::setValue(pinValue val){
 	fd = open(buf, O_WRONLY);
 	if (fd < 0) {
 		perror("gpio/set-value");
-		//return fd;
 	}
 
-	if (val == LOW)
-		write(fd, "0", 2);
-	else
-		write(fd, "1", 2);
-
+	switch(value) {
+		case LOW :
+			write(fd, "0", 2);
+			break; 
+		case HIGH :
+			write(fd, "1", 2);
+			break;
+	}
 	close(fd);
 }
 
@@ -152,26 +155,37 @@ int GPIO::fdClose()
 	return close(fd);
 }
 
-///////////////////////////////////////////////////////////////////
+/****************************************************************
+ * ButtonPoll Class
+ ****************************************************************/
+/****************************************************************
+ * ButtonPoll::ButtonPoll
+ ****************************************************************/
+ButtonPoll::ButtonPoll(){
+}
 
 void ButtonPoll::add(GPIO* button){
 	gpio_list.push_back(button);
 }
 
+/****************************************************************
+ * ButtonPoll::polling
+ ****************************************************************/
 void ButtonPoll::polling(){
-	int size = gpio_list.size();
-	int i;
+	int size = gpio_list.size();	//number of buttons/interrupts
 	int rc;
 	int timeout = 1000;
-	int len;
+	int i,len;
 	int buf[1];
 	int count[size];
 
-	memset(count, 0, size);
+	//memset(count, 0, size);
+	for(i =0; i<size; i++){
+		count[i]=0;
+	}
 	while(1){
 		fdset = new pollfd[size];
-		//i= gpio_list(0)->fd;
-		//printf("%u", gpio_list[0]);
+
 		for(i=0; i<size; i++){
 			fdset[i].fd = gpio_list[i]->fd;
 			fdset[i].events = POLLPRI;
@@ -180,7 +194,6 @@ void ButtonPoll::polling(){
 		rc = poll(fdset, size, timeout);
 		if (rc < 0) {
 			std::cout << std::endl << "poll()failed!" << std::endl;
-			//return -1;
 		}
 
 		if (rc == 0) {
@@ -199,7 +212,6 @@ void ButtonPoll::polling(){
 					}
 					else{
 						// ISR here
-						//TO DO; function return is_pressed.
 						std::cout << std::endl << "poll() GPIO interrupt occurred" << std::endl;
 						std::cout << "read value: " << (char)buf[0] << std::endl;
 						gpio_list[i]->is_pressed = true;
@@ -207,5 +219,7 @@ void ButtonPoll::polling(){
 				}
 			}
 		}
+		fflush(stdout);
+		delete fdset;
 	}
 }

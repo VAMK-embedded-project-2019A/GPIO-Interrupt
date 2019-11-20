@@ -17,7 +17,7 @@ enum edge{
 	RISING = 0,
 	FALLING = 1,
 	BOTH = 2
-	};
+};
 
 class GPIO{
 	public:
@@ -46,9 +46,11 @@ class ButtonPoll{
 	public:
 		std::vector <GPIO*>gpio_list;
 		struct pollfd* fdset= NULL;
+		
+		//Constructor
 		ButtonPoll();
 
+		//Methods
 		void add(GPIO* button);
 		void polling();
-	private:
 };
