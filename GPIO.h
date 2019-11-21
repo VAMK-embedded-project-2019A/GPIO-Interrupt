@@ -1,56 +1,43 @@
-#define SYSFS_GPIO_DIR "/sys/class/gpio"
-#define MAX_BUF 64
+#ifndef GPIO_H
+#define GPIO_H
+
 #include <vector>
-#include <poll.h>
+#include <string>
+#include <queue>
 
-enum pinDirection{
-		INPUT = 0,
-		OUTPUT = 1
-	};
-
-enum pinValue{
-	LOW = 0,
-	HIGH = 1
-};
-
-enum edge{
-	RISING = 0,
-	FALLING = 1,
-	BOTH = 2
-};
-
-class GPIO{
+class GPIO
+{
 	public:
-		bool is_pressed = false;
-		int fd;
+		friend class ButtonPoll;
 
-		//Constructor
-		GPIO();
-
-		//Methods
-		int init(int pin, pinDirection direction, edge edge);
-		void pinExport();
-		void setDir(pinDirection direction);
-		void setValue(pinValue value);
-		void setEdge(edge edge);
-		int fdOpen();
-		int fdClose();
+		GPIO() = delete;
 
 	private:
-		int _gpioPin;
-		pinDirection _dir;
-		edge _edge;
-};
-
-class ButtonPoll{
-	public:
-		std::vector <GPIO*>gpio_list;
-		struct pollfd* fdset= NULL;
+		GPIO(int pin, int edge);
+		bool pinExport();
+		bool setDirection();
+		bool setEdge(int edge);
 		
-		//Constructor
-		ButtonPoll();
-
-		//Methods
-		void add(GPIO* button);
-		void polling();
+		const std::string SYSFS_GPIO_DIR{"/sys/class/gpio"};
+		int _gpio_pin;
+		int _fd;
 };
+
+class ButtonPoll
+{
+	public:
+		ButtonPoll() = default;
+		~ButtonPoll();
+		enum TriggerEdge : int { Rising, Falling, Both };
+
+		void addButton(int pin, TriggerEdge edge);
+		void start();
+		bool isButtonPressed();
+		int getNextPressedPin();
+
+	private:
+		std::vector<GPIO> _gpio_vec;
+		std::queue<int> _pressed_queue;
+};
+
+#endif // GPIO_H

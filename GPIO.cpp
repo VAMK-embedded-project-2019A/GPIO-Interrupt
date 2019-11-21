@@ -1,225 +1,178 @@
 #include <iostream>
-#include <cstdio> 
-#include <cstring>
-#include <stdlib.h>
+#include <cstdio>	// std::perror()
+#include <cstdlib>
+#include <algorithm>
+#include <chrono>
+#include <thread>
+
 #include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <unistd.h>	// lseek()
+#include <fcntl.h>	// read(), write(), open()
+#include <poll.h>	// poll()
 
 #include "GPIO.h"
 
-/****************************************************************
- * GPIO::GPIO
- ****************************************************************/
-GPIO::GPIO(){
-}
-
-/****************************************************************
- * GPIO::init
- ****************************************************************/
-int GPIO::init(int pin, pinDirection dir, edge edge){
-	_gpioPin = pin;
-	_dir = dir;
-	_edge = edge;
-	GPIO::pinExport();
-	GPIO::setDir(_dir);
-	GPIO::setEdge(_edge);
-	fd = GPIO::fdOpen();
-	return fd;
-}
-
-/****************************************************************
- * GPIO::pinExport
- ****************************************************************/
-void GPIO::pinExport()
+GPIO::GPIO(int pin, int edge)
 {
-	int fd, len;
-	char buf[MAX_BUF];
- 
-	fd = open(SYSFS_GPIO_DIR "/export", O_WRONLY);
-	if (fd < 0) {
-		perror("gpio/export");
+	_gpio_pin = pin;
+	
+	pinExport();
+	setDirection();
+	setEdge(edge);
+	
+	std::string path = SYSFS_GPIO_DIR + "/gpio" + std::to_string(_gpio_pin) + "/value";
+	_fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
+	if(_fd < 0)
+		std::perror(path.c_str());
+}
+
+bool GPIO::pinExport()
+{
+	std::string path = SYSFS_GPIO_DIR + "/export";
+	int fd = open(path.c_str(), O_WRONLY);
+	if(fd < 0)
+	{
+		std::perror(path.c_str());
+		return false;
 	}
  
-	len = snprintf(buf, sizeof(buf), "%d", _gpioPin);
-	write(fd, buf, len);
+	auto data = std::to_string(_gpio_pin);
+	write(fd, data.c_str(), data.length());
 	close(fd);
+	return true;
 }
 
-/****************************************************************
- * GPIO::setDir
- * to set direction of a GPIO pin
- ****************************************************************/
-void GPIO::setDir(pinDirection direction){
-	int fd; // file descriptor
-	char buf[MAX_BUF];
-
-	snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR  "/gpio%d/direction", _gpioPin);
-
-	fd = open(buf, O_WRONLY);
-	if (fd < 0) {
-		perror("gpio/direction");
-	}
-
-	switch(direction) {
-		case OUTPUT :
-			write(fd, "out", 4);
-			break; 
-		case INPUT :
-			write(fd, "in", 3);
-			break;
-	}	
-	close(fd);
-}
-
-/****************************************************************
- * GPIO::setValue
- * to set Value of a GPIO pin
- ****************************************************************/
-void GPIO::setValue(pinValue value){
-	int fd;
-	char buf[MAX_BUF];
-
-	snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR "/gpio%d/value", _gpioPin);
-
-	fd = open(buf, O_WRONLY);
-	if (fd < 0) {
-		perror("gpio/set-value");
-	}
-
-	switch(value) {
-		case LOW :
-			write(fd, "0", 2);
-			break; 
-		case HIGH :
-			write(fd, "1", 2);
-			break;
-	}
-	close(fd);
-}
-
-/****************************************************************
- * GPIO::setEdge
- ****************************************************************/
-void GPIO::setEdge(edge edge)
+bool GPIO::setDirection()
 {
-	int fd;
-	char buf[MAX_BUF];
-
-	snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR "/gpio%d/edge", _gpioPin);
-
-	fd = open(buf, O_WRONLY);
-	if (fd < 0) {
-		perror("gpio/set-edge");
-		//return fd;
+	std::string path = SYSFS_GPIO_DIR + "/gpio" + std::to_string(_gpio_pin) + "/direction";
+	int fd = open(path.c_str(), O_WRONLY);
+	if(fd < 0)
+	{
+		std::perror(path.c_str());
+		return false;
 	}
 
-	switch(edge) {
-		case RISING :
-			write(fd, "rising", 7);
-			break; 
-		case FALLING :
-			write(fd, "falling", 8);
-			break;
-		case BOTH :
-			write(fd, "both", 5);
-			break;
-	}
+	std::string data = "in";
+	
+	// TODO: why +1 here!!!
+	write(fd, data.c_str(), data.length() + 1);
 	close(fd);
+	return true;
 }
 
-/****************************************************************
- * GPIO::fdOpen
- ****************************************************************/
-
-int GPIO::fdOpen()
+bool GPIO::setEdge(int edge)
 {
-	int fd;
-	char buf[MAX_BUF];
-
-	snprintf(buf, sizeof(buf), SYSFS_GPIO_DIR "/gpio%d/value", _gpioPin);
-
-	fd = open(buf, O_RDONLY | O_NONBLOCK );
-	if (fd < 0) {
-		perror("gpio/fd_open");
+	std::string path = SYSFS_GPIO_DIR + "/gpio" + std::to_string(_gpio_pin) + "/edge";
+	int fd = open(path.c_str(), O_WRONLY);
+	if(fd < 0)
+	{
+		std::perror(path.c_str());
+		return false;
 	}
-	return fd;
+
+	std::string data;
+	switch(edge)
+	{
+		case ButtonPoll::Rising:
+			data = "rising";
+			break; 
+		case ButtonPoll::Falling:
+			data = "falling";
+			break;
+		case ButtonPoll::Both:
+			data = "both";
+			break;
+		default:
+			close(fd);
+			return false;
+	}
+	write(fd, data.c_str(), data.length() + 1);
+	close(fd);
+	return true;
 }
 
-/****************************************************************
- * GPIO::fdClose
- ****************************************************************/
-
-int GPIO::fdClose()
+ButtonPoll::~ButtonPoll()
 {
-	return close(fd);
+	std::for_each(_gpio_vec.begin(), _gpio_vec.end(), [](GPIO &gpio)
+	{
+		close(gpio._fd);
+	});
 }
 
-/****************************************************************
- * ButtonPoll Class
- ****************************************************************/
-/****************************************************************
- * ButtonPoll::ButtonPoll
- ****************************************************************/
-ButtonPoll::ButtonPoll(){
+void ButtonPoll::addButton(int pin, TriggerEdge edge)
+{
+	_gpio_vec.push_back(GPIO(pin, static_cast<int>(edge)));
 }
 
-void ButtonPoll::add(GPIO* button){
-	gpio_list.push_back(button);
+bool ButtonPoll::isButtonPressed()
+{
+	return !_pressed_queue.empty();
 }
 
-/****************************************************************
- * ButtonPoll::polling
- ****************************************************************/
-void ButtonPoll::polling(){
-	int size = gpio_list.size();	//number of buttons/interrupts
-	int rc;
-	int timeout = 1000;
-	int i,len;
-	int buf[1];
-	int count[size];
+int ButtonPoll::getNextPressedPin()
+{
+	if(_pressed_queue.empty())
+		return -1;
 
-	//memset(count, 0, size);
-	for(i =0; i<size; i++){
-		count[i]=0;
-	}
-	while(1){
-		fdset = new pollfd[size];
+	int pin = _gpio_vec.at(_pressed_queue.front())._gpio_pin;
+	_pressed_queue.pop();
+	return pin;
+}
 
-		for(i=0; i<size; i++){
-			fdset[i].fd = gpio_list[i]->fd;
+void ButtonPoll::start()
+{
+	const int BUTTON_COUNT = _gpio_vec.size();
+	std::vector<bool> first_interrupt(BUTTON_COUNT, true);
+	std::chrono::milliseconds timeout{700};
+
+	while(true)
+	{
+		struct pollfd *fdset = new pollfd[BUTTON_COUNT];
+
+		for(int i=0; i<BUTTON_COUNT; i++)
+		{
+			fdset[i].fd = _gpio_vec[i]._fd;
 			fdset[i].events = POLLPRI;
 		}
 
-		rc = poll(fdset, size, timeout);
-		if (rc < 0) {
-			std::cout << std::endl << "poll()failed!" << std::endl;
+		// blocking until at least one fd ready, or timeout
+		int ready_count = poll(fdset, BUTTON_COUNT, timeout.count());
+		if(ready_count < 0)
+		{
+			std::cout << std::endl << "poll() failed!" << std::endl;
+			goto NEXT_POLL;
 		}
-
-		if (rc == 0) {
+		if(ready_count == 0)
+		{
 			std::cout << ".";
+			goto NEXT_POLL;
 		}
 
-		if(rc>0){
-			for(i=0; i<size; i++){
-				if (fdset[i].revents & POLLPRI) {
-					lseek(fdset[i].fd, 0, SEEK_SET);
-					len = read(fdset[i].fd, &buf, 1);
-					
-					if(count[i] == 0){
-						count[i]++;
-						// Do Nothing for 1st interrupt
-					}
-					else{
-						// ISR here
-						std::cout << std::endl << "poll() GPIO interrupt occurred" << std::endl;
-						std::cout << "read value: " << (char)buf[0] << std::endl;
-						gpio_list[i]->is_pressed = true;
-					}
+		for(int i=0; i<BUTTON_COUNT; i++)
+		{
+			if(fdset[i].revents & POLLPRI)
+			{
+				lseek(fdset[i].fd, 0, SEEK_SET);
+
+				const int BUFFER_SIZE{1};
+				int buf[BUFFER_SIZE];
+				read(fdset[i].fd, &buf, BUFFER_SIZE);
+
+				// do nothing for 1st interrupt
+				if(first_interrupt.at(i))
+				{
+					first_interrupt[i] = false;
+					continue;
 				}
+
+				std::cout << std::endl << "Button " << i << "pressed" << std::endl;
+				_pressed_queue.push(i);
 			}
 		}
-		fflush(stdout);
-		delete fdset;
+
+	NEXT_POLL:
+		std::cout.flush(); // print all cout buffer
+		delete[] fdset;
+		std::this_thread::sleep_for(std::chrono::seconds(1) - timeout);
 	}
 }

@@ -1,38 +1,15 @@
-#include <iostream>
-#include <cstdio>
-#include <cstring>
-#include <stdlib.h>
-#include <unistd.h> //for lseek
 #include "GPIO.h"
 
 int main()
 {
-	int button1 = 4;	//gpiopin for play button
-	int button2 = 27;	//gpiopin for next button
-
-	GPIO play, next;
-	play.init(button1, INPUT, RISING);
-	next.init(button2, INPUT, RISING);
+	int pin_1 = 4;	// gpiopin for play button
+	int pin_2 = 27;	// gpiopin for next button
 	
-	ButtonPoll buttonpoll;
-	buttonpoll.add(&play);
-	buttonpoll.add(&next);
+	ButtonPoll button_poll;
+	button_poll.addButton(pin_1, ButtonPoll::TriggerEdge::Rising);
+	button_poll.addButton(pin_2, ButtonPoll::TriggerEdge::Rising);
 	
-	buttonpoll.polling();
-
-	play.fdClose();
-	next.fdClose();
-
-	if(play.is_pressed){
-		//do something;
-		play.is_pressed = false;
-	}
-
-	
-	if(next.is_pressed){
-		//do something;
-		next.is_pressed = false;
-	}
+	button_poll.start();
 	
 	return 0;
 }
