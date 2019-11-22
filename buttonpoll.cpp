@@ -1,7 +1,6 @@
 #include "buttonpoll.h"
 
 #include <iostream>
-#include <algorithm>
 #include <chrono>
 #include <thread>
 
@@ -10,10 +9,8 @@
 
 ButtonPoll::~ButtonPoll()
 {
-	std::for_each(_buttons.begin(), _buttons.end(), [](Button &button)
-	{
+	for(auto &button : _buttons)
 		close(button._fd);
-	});
 }
 
 void ButtonPoll::addButton(int pin, TriggerEdge edge)
