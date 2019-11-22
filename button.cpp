@@ -3,9 +3,9 @@
 
 #include <cstdio>	// std::perror()
 
-#include <unistd.h>	// write(), close(), read()
 #include <fcntl.h>	// open()
 #include <poll.h>	// poll()
+#include <fstream>	// std::fstream
 
 Button::Button(int pin, int edge)
 {
@@ -24,43 +24,44 @@ Button::Button(int pin, int edge)
 bool Button::pinExport()
 {
 	std::string path = SYSFS_GPIO_DIR + "/export";
-	int fd = open(path.c_str(), O_WRONLY);
-	if(fd < 0)
-	{
+	std::fstream file;
+	
+	file.open(path);
+	if(!file.is_open()){
 		std::perror(path.c_str());
 		return false;
 	}
- 
+
 	auto data = std::to_string(_gpio_pin);
-	write(fd, data.c_str(), data.length());
-	close(fd);
+	file << data;
+	file.close();
 	return true;
 }
 
 bool Button::setDirection()
 {
 	std::string path = SYSFS_GPIO_DIR + "/gpio" + std::to_string(_gpio_pin) + "/direction";
-	int fd = open(path.c_str(), O_WRONLY);
-	if(fd < 0)
-	{
+	std::fstream file;
+	
+	file.open(path);
+	if(!file.is_open()){
 		std::perror(path.c_str());
 		return false;
 	}
-
-	std::string data = "in";
 	
-	// TODO: why +1 here!!!
-	write(fd, data.c_str(), data.length() + 1);
-	close(fd);
+	std::string data = "in";
+	file << data;
+	file.close();
 	return true;
 }
 
 bool Button::setEdge(int edge)
 {
 	std::string path = SYSFS_GPIO_DIR + "/gpio" + std::to_string(_gpio_pin) + "/edge";
-	int fd = open(path.c_str(), O_WRONLY);
-	if(fd < 0)
-	{
+	std::fstream file;
+	
+	file.open(path);
+	if(!file.is_open()){
 		std::perror(path.c_str());
 		return false;
 	}
@@ -78,10 +79,10 @@ bool Button::setEdge(int edge)
 			data = "both";
 			break;
 		default:
-			close(fd);
+			file.close();
 			return false;
 	}
-	write(fd, data.c_str(), data.length() + 1);
-	close(fd);
+	file << data;
+	file.close();
 	return true;
 }
