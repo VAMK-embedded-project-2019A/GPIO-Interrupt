@@ -1,13 +1,8 @@
+all: main.o buttonpoll.o button.o
+	g++ -Wall $^ -o build
 
-all: main.o GPIO.o
-	g++ main.o GPIO.o -o build
-	rm *.o -f
-	
-main: main.cpp
-	g++ main.cpp -c
-
-GPIO: GPIO.o
-	g++ GPIO.cpp -c
+%.o: %.c
+	g++ -Wall -c $< -o $@
 
 clean:
 	rm *.o -f
