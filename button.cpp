@@ -10,11 +10,11 @@
 Button::Button(int pin, int edge)
 {
 	_gpio_pin = pin;
-	
+
 	pinExport();
 	setDirection();
 	setEdge(edge);
-	
+
 	std::string path = SYSFS_GPIO_DIR + "/gpio" + std::to_string(_gpio_pin) + "/value";
 	_fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
 	if(_fd < 0)
@@ -25,9 +25,10 @@ bool Button::pinExport()
 {
 	std::string path = SYSFS_GPIO_DIR + "/export";
 	std::fstream file;
-	
+
 	file.open(path);
-	if(!file.is_open()){
+	if(!file.is_open())
+	{
 		std::perror(path.c_str());
 		return false;
 	}
@@ -42,13 +43,14 @@ bool Button::setDirection()
 {
 	std::string path = SYSFS_GPIO_DIR + "/gpio" + std::to_string(_gpio_pin) + "/direction";
 	std::fstream file;
-	
+
 	file.open(path);
-	if(!file.is_open()){
+	if(!file.is_open())
+	{
 		std::perror(path.c_str());
 		return false;
 	}
-	
+
 	std::string data = "in";
 	file << data;
 	file.close();
@@ -59,9 +61,10 @@ bool Button::setEdge(int edge)
 {
 	std::string path = SYSFS_GPIO_DIR + "/gpio" + std::to_string(_gpio_pin) + "/edge";
 	std::fstream file;
-	
+
 	file.open(path);
-	if(!file.is_open()){
+	if(!file.is_open())
+	{
 		std::perror(path.c_str());
 		return false;
 	}
@@ -71,7 +74,7 @@ bool Button::setEdge(int edge)
 	{
 		case ButtonPoll::Rising:
 			data = "rising";
-			break; 
+			break;
 		case ButtonPoll::Falling:
 			data = "falling";
 			break;
